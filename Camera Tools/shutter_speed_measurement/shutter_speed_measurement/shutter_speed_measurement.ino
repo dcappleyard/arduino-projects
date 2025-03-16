@@ -1,16 +1,26 @@
 #include <Wire.h>
-#include <Adafruit_LiquidCrystal.h>
+#include <Adafruit_RGBLCDShield.h>
+#include <utility/Adafruit_MCP23017.h>
 
 // Initialize LCD Shield
-Adafruit_LiquidCrystal lcd(0);
+Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
 
 // Define Buttons
-#define BUTTON_SELECT 0
-#define BUTTON_LEFT   1
-#define BUTTON_UP     2
-#define BUTTON_DOWN   3
-#define BUTTON_RIGHT  4
+#define BUTT_SELECT 0
+#define BUTT_LEFT   1
+#define BUTT_UP     2
+#define BUTT_DOWN   3
+#define BUTT_RIGHT  4
 #define NO_BUTTON     -1
+
+// These #defines make it easy to set the backlight color
+#define RED 0x1
+#define YELLOW 0x3
+#define GREEN 0x2
+#define TEAL 0x6
+#define BLUE 0x4
+#define VIOLET 0x5
+#define WHITE 0x7
 
 // Define Pins
 #define ANALOG_PIN A0     // Analog input pin
@@ -18,12 +28,13 @@ Adafruit_LiquidCrystal lcd(0);
 #define THRESHOLD 512     // ADC threshold (512 = ~2.5V)
 #define TIMEOUT 1000000   // Timeout in microseconds (1s)
 
+
 // Menu State
 int menuIndex = 0;
 const char* menuItems[] = {
     "1) Align System",
     "2) Test Once",
-    "3) Test 5"
+    "3) Test 5",
 };
 const int menuSize = sizeof(menuItems) / sizeof(menuItems[0]);
 
@@ -31,22 +42,22 @@ void setup() {
     lcd.begin(16, 2);  // Initialize LCD
     pinMode(CONTROL_PIN, OUTPUT);
     digitalWrite(CONTROL_PIN, LOW); // Ensure control pin starts low
-    lcd.setBacklight(HIGH);
+    lcd.setBacklight(WHITE);
     displayMenu();
 }
 
 void loop() {
     int button = getButtonPress();
 
-    if (button == BUTTON_DOWN) {
+    if (button == BUTT_DOWN) {
         menuIndex = (menuIndex + 1) % menuSize;
         displayMenu();
     } 
-    else if (button == BUTTON_UP) {
+    else if (button == BUTT_UP) {
         menuIndex = (menuIndex - 1 + menuSize) % menuSize;
         displayMenu();
     } 
-    else if (button == BUTTON_SELECT) {
+    else if (button == BUTT_SELECT) {
         executeMenuOption();
         displayMenu();
     }
@@ -55,6 +66,7 @@ void loop() {
 // Display current menu option
 void displayMenu() {
     lcd.clear();
+    lcd.setBacklight(WHITE);
     lcd.setCursor(0, 0);
     lcd.print("Select Option:");
     lcd.setCursor(0, 1);
@@ -63,12 +75,12 @@ void displayMenu() {
 
 // Read button input
 int getButtonPress() {
-    int adc_key_in = analogRead(A1);
-    if (adc_key_in < 50) return BUTTON_SELECT;
-    if (adc_key_in < 250) return BUTTON_LEFT;
-    if (adc_key_in < 450) return BUTTON_DOWN;
-    if (adc_key_in < 650) return BUTTON_UP;
-    if (adc_key_in < 850) return BUTTON_RIGHT;
+    uint8_t buttons = lcd.readButtons();
+    if (buttons & BUTTON_UP) return BUTT_UP;
+    if (buttons & BUTTON_DOWN) return BUTT_DOWN;
+    if (buttons & BUTTON_LEFT) return BUTT_LEFT;
+    if (buttons & BUTTON_RIGHT) return BUTT_RIGHT;
+    if (buttons & BUTTON_SELECT) return BUTT_SELECT;
     return NO_BUTTON;
 }
 
@@ -83,6 +95,8 @@ void executeMenuOption() {
 
 // Align System: Hold control pin HIGH until user presses a button
 void alignSystem() {
+    lcd.setBacklight(RED);
+    delay(250);  //need this as there is a button press in the queue / debounce
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Aligning...");
@@ -99,7 +113,11 @@ void alignSystem() {
 
 // Test Once: Measure signal duration once and display result
 void testOnce() {
+    lcd.setBacklight(VIOLET);
+    delay(250);
     unsigned long duration = measureAnalogDuration();
+
+    
 
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -117,6 +135,8 @@ void testFive() {
     unsigned long sum = 0;
     double mean, variance = 0, stddev;
 
+    lcd.setBacklight(BLUE);
+    delay(250);
     for (int i = 0; i < 5; i++) {
         durations[i] = measureAnalogDuration();
         sum += durations[i];
