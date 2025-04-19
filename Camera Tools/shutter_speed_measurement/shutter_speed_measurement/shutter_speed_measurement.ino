@@ -23,10 +23,10 @@ Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
 #define WHITE 0x7
 
 // Define Pins
-#define ANALOG_PIN A0     // Analog input pin
-#define CONTROL_PIN 8     // Digital output pin for alignment mode
-#define THRESHOLD 512     // ADC threshold (512 = ~2.5V)
-#define TIMEOUT 1000000   // Timeout in microseconds (1s)
+#define ANALOG_PIN A2     // Analog input pin
+#define CONTROL_PIN 9     // Digital output pin for alignment mode
+#define THRESHOLD 100     // ADC threshold (512 = ~2.5V)
+#define TIMEOUT 50000000   // Timeout in microseconds (1s)
 
 
 // Menu State
@@ -39,10 +39,22 @@ const char* menuItems[] = {
 const int menuSize = sizeof(menuItems) / sizeof(menuItems[0]);
 
 void setup() {
+    Serial.begin(9600);
     lcd.begin(16, 2);  // Initialize LCD
     pinMode(CONTROL_PIN, OUTPUT);
     digitalWrite(CONTROL_PIN, LOW); // Ensure control pin starts low
     lcd.setBacklight(WHITE);
+    delay(300);
+    lcd.setBacklight(RED);
+    delay(300);
+    lcd.setBacklight(YELLOW);
+    delay(300);
+    lcd.setBacklight(GREEN);
+    delay(300);
+    lcd.setBacklight(TEAL);
+    delay(300);
+    lcd.setBacklight(BLUE);
+    delay(300);
     displayMenu();
 }
 
@@ -95,14 +107,23 @@ void executeMenuOption() {
 
 // Align System: Hold control pin HIGH until user presses a button
 void alignSystem() {
+  char buffer[16];
+
     lcd.setBacklight(RED);
     delay(250);  //need this as there is a button press in the queue / debounce
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Aligning...");
     digitalWrite(CONTROL_PIN, HIGH);
+    
 
-    while (getButtonPress() == NO_BUTTON); // Wait for button press
+    while (getButtonPress() == NO_BUTTON){
+      // Format this!
+      sprintf(buffer,"%4d",analogRead(ANALOG_PIN));
+      lcd.setCursor(0,1);
+      lcd.print(buffer);
+      delay(200);
+    }; // Wait for button press
     digitalWrite(CONTROL_PIN, LOW);
 
     lcd.clear();
@@ -116,7 +137,7 @@ void testOnce() {
     lcd.setBacklight(VIOLET);
     delay(250);
     unsigned long duration = measureAnalogDuration();
-
+    lcd.setBacklight(VIOLET);
     
 
     lcd.clear();
@@ -177,19 +198,42 @@ void testFive() {
 unsigned long measureAnalogDuration() {
     unsigned long startTime = 0, duration = 0;
 
-    // Wait for signal to rise above threshold
+    lcd.setBacklight(GREEN);
+    // Turn on the laser
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Primed, Waiting.. ");
+    //Serial.println("Starting");
+    digitalWrite(CONTROL_PIN, HIGH);
+
+    startTime = micros();
+    // Serial.print("Time: ");
+    // Serial.println(startTime);
+    // Serial.print("Initial Value: ");
+    // Serial.println(analogRead(ANALOG_PIN));
+    // // Wait for signal to rise above threshold
     while (analogRead(ANALOG_PIN) < THRESHOLD) {
-        if (micros() - startTime > TIMEOUT) return 0;
+      // Serial.print("Closed shutter value: ");
+      // Serial.println(analogRead(ANALOG_PIN));
+      if ((micros() - startTime) > (10*TIMEOUT)) return 0;
     }
 
     startTime = micros();
-
+    // Serial.print("Measure Time: ");
+    // Serial.println(startTime);
+    // Serial.print("First Measure Value: ");
+    // Serial.println(analogRead(ANALOG_PIN));
     // Measure time above threshold
     while (analogRead(ANALOG_PIN) >= THRESHOLD) {
-        if (micros() - startTime > TIMEOUT) break;
+      // Serial.print("Open shutter value: ");
+      // Serial.println(analogRead(ANALOG_PIN));
+        if ((micros() - startTime )> TIMEOUT) break;
     }
 
     duration = micros() - startTime;
+
+    // Turn off the laser
+    digitalWrite(CONTROL_PIN, LOW);
     return duration;
 }
 
